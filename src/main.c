@@ -10,19 +10,19 @@
 #include "client.h"
 #include "config.h"
 #include "cube.h"
-#include "db.h"
+#include "db.h" // Use sqlite3
 #include "item.h"
 #include "map.h"
 #include "matrix.h"
-#include "noise.h"
+#include "noise.h" // Simplex Noise
 #include "sign.h"
-#include "tinycthread.h"
-#include "util.h"
+#include "tinycthread.h"  // TinyCThread, support C++11 
+#include "util.h"  // GL related function, use LodePNG for png loader
 #include "world.h"
 
 #define MAX_CHUNKS 8192
 #define MAX_PLAYERS 128
-#define WORKERS 4
+#define WORKERS 4  // Thread num
 #define MAX_TEXT_LENGTH 256
 #define MAX_NAME_LENGTH 32
 #define MAX_PATH_LENGTH 256
@@ -35,6 +35,7 @@
 #define MODE_OFFLINE 0
 #define MODE_ONLINE 1
 
+// Thread Parameters
 #define WORKER_IDLE 0
 #define WORKER_BUSY 1
 #define WORKER_DONE 2
@@ -1109,6 +1110,10 @@ void compute_chunk(WorkerItem *item) {
                     max_light = MAX(max_light, light[a][b]);
                 }
             }
+            // 
+            // Simplex Noise 
+            // See noise.h & https://github.com/caseman/noise
+            //
             float rotation = simplex2(ex, ez, 4, 0.5, 2) * 360;
             make_plant(
                 data + offset, min_ao, max_light,
@@ -1173,6 +1178,7 @@ void map_set_func(int x, int y, int z, int w, void *arg) {
     map_set(map, x, y, z, w);
 }
 
+// Create World and load Chunk
 void load_chunk(WorkerItem *item) {
     int p = item->p;
     int q = item->q;
@@ -2716,7 +2722,10 @@ int main(int argc, char **argv) {
     g->delete_radius = DELETE_CHUNK_RADIUS;
     g->sign_radius = RENDER_SIGN_RADIUS;
 
+    // 
     // INITIALIZE WORKER THREADS
+    // Use TinyCThread. See https://tinycthread.github.io/
+    //
     for (int i = 0; i < WORKERS; i++) {
         Worker *worker = g->workers + i;
         worker->index = i;
@@ -2730,6 +2739,7 @@ int main(int argc, char **argv) {
     int running = 1;
     while (running) {
         // DATABASE INITIALIZATION //
+        // sqliteDB 
         if (g->mode == MODE_OFFLINE || USE_CACHE) {
             db_enable();
             if (db_init(g->db_path)) {
@@ -2834,7 +2844,7 @@ int main(int argc, char **argv) {
             glClear(GL_DEPTH_BUFFER_BIT);
             render_sky(&sky_attrib, player, sky_buffer);
             glClear(GL_DEPTH_BUFFER_BIT);
-            int face_count = render_chunks(&block_attrib, player);
+            int face_count = render_chunks(&block_attrib, player); // Init for world
             render_signs(&text_attrib, player);
             render_sign(&text_attrib, player);
             render_players(&block_attrib, player);
